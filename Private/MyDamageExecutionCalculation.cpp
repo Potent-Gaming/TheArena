@@ -43,7 +43,6 @@ UMyDamageExecutionCalculation::UMyDamageExecutionCalculation()
 	RelevantAttributesToCapture.Add(DamageStatics().ArmorDef);
 	RelevantAttributesToCapture.Add(DamageStatics().DamageDef);
 
-	// We don't include Damage here because we're not capturing it. It is generated inside the ExecCalc.
 }
 
 void UMyDamageExecutionCalculation::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
@@ -55,6 +54,11 @@ void UMyDamageExecutionCalculation::Execute_Implementation(const FGameplayEffect
 	AActor* TargetActor = TargetAbilitySystemComponent ? TargetAbilitySystemComponent->AvatarActor : nullptr;
 
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	//const FModifierSpec& ModSpec = Spec.Modifiers[0];
+	//ExecutionParams.
+	//	UE_LOG(LogTemp, Warning, TEXT("Test"));
+	//const FGameplayEffectModifierMagnitude& Mod = 
+	
 
 	// Gather the tags from the source and target as that can affect which buffs should be used
 	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
@@ -65,9 +69,11 @@ void UMyDamageExecutionCalculation::Execute_Implementation(const FGameplayEffect
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 
-
+	
+	
 	float Damage = 0.f;
-	FMath::Max<float>(ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage), 0.0f);
+	//FMath::Max<float>(
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage); //, 0.0f);
 
 	//Calculations for Physical Damage
 	if (Spec.CapturedSourceTags.GetAggregatedTags()->HasTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Damage.Physical")))))

@@ -14,9 +14,10 @@ UMyAttributeSet::UMyAttributeSet()
 	, MaxHealth(1.f)
 	, Armor(1.f)
 	, MaxArmor(1.f)
-	, MovementSpeedMultiplier(1.f)
+	, MovementSpeedModifier(1.f)
 	, AttackSpeed(3.f)
 	, Damage(1.f)
+	, BaseDamage(1.f)
 	, PhysicalEffectiveness(1.f)
 	, MagicalEffectiveness(1.f)
 	, Endurance(1.f)
@@ -33,7 +34,8 @@ void UMyAttributeSet::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, Damage, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, MovementSpeedMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, BaseDamage, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, MovementSpeedModifier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, AttackSpeed, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, Armor, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMyAttributeSet, MaxArmor, COND_None, REPNOTIFY_Always);
@@ -59,6 +61,11 @@ void UMyAttributeSet::OnRep_Damage()
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, Damage, OldValue);
 }
 
+void UMyAttributeSet::OnRep_BaseDamage()
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, BaseDamage, OldValue);
+}
+
 void UMyAttributeSet::OnRep_Armor()
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, Armor, OldValue);
@@ -69,9 +76,9 @@ void UMyAttributeSet::OnRep_MaxArmor()
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, MaxArmor, OldValue);
 }
 
-void UMyAttributeSet::OnRep_MovementSpeedMultiplier()
+void UMyAttributeSet::OnRep_MovementSpeedModifier()
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, MovementSpeedMultiplier, OldValue);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMyAttributeSet, MovementSpeedModifier, OldValue);
 }
 
 void UMyAttributeSet::OnRep_AttackSpeed()
@@ -133,20 +140,24 @@ void UMyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 	// Compute the delta between old and new, if it is available
 
 	float DeltaValue = 0;
+	FString Opperator = "";
 	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
 	{
 		// If this was additive, store the raw delta value to be passed along later
 		DeltaValue = Data.EvaluatedData.Magnitude;
+		Opperator = "Add";
 	}
 	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Multiplicitive)
 	{
 		// If this was additive, store the raw delta value to be passed along later
 		DeltaValue = Data.EvaluatedData.Magnitude;
+		Opperator = "Multiply";
 	}
 	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Division)
 	{
 		// If this was additive, store the raw delta value to be passed along later
 		DeltaValue = Data.EvaluatedData.Magnitude;
+		Opperator = "Divide";
 	}
 
 	// Get the Target actor, which should be our owner
@@ -207,9 +218,7 @@ void UMyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 		SetDamage(0.f);
 
 
-		//UE_LOG(LogTemp, Warning, TEXT("Local Damage %f"), LocalDamageDone);
-
-
+		//UE_LOG(LogTemp, Warning, TEXT("Local Damage %f"), LocalDamageDone)
 		if (LocalDamageDone > 0)
 		{
 			// Apply the health change and then clamp it
@@ -255,18 +264,20 @@ void UMyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 			TargetCharacter->HandleHealthChanged(DeltaValue, SourceTags);
 		}
 	}
-	else if (Data.EvaluatedData.Attribute == GetMovementSpeedMultiplierAttribute())
+	else if (Data.EvaluatedData.Attribute == GetMovementSpeedModifierAttribute())
 	{
 		// Handle other health changes such as from healing or direct modifiers
 		// First clamp it
-		UE_LOG(LogTemp, Warning, TEXT("%f"), DeltaValue);
-		SetMovementSpeedMultiplier(FMath::Clamp(DeltaValue, 0.25f, 2.0f));
-		if (TargetCharacter)
-		{
-			// Call for all health changes
-			TargetCharacter->HandleMovementSpeedChanged(GetMovementSpeedMultiplier(), SourceTags);
-		}
-
+			SetMovementSpeedModifier(FMath::Clamp(DeltaValue, -600.0f, 600.0f));
+			if (TargetCharacter)
+			{
+				// Call for all health changes
+				TargetCharacter->HandleMovementSpeedChanged(GetMovementSpeedModifier(), SourceTags, Opperator);
+			}
+	}
+	else if (Data.EvaluatedData.Attribute == GetBaseDamageAttribute())
+	{
+		SetBaseDamage(FMath::Clamp(DeltaValue, 0.0f, 900.f));
 	}
 
 }

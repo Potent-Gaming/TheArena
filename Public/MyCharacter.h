@@ -14,6 +14,27 @@
 class UGameplayAbility;
 class UGameplayEffect;
 
+UENUM(BlueprintType)
+enum class AbilityInput : uint8
+{
+	Sprint UMETA(DisplayName = "Sprint"),
+	InputAbility1 UMETA(DisplayName = "InputAbility 1"), //This maps the first ability(input ID should be 0 in int) to the action mapping(which you define in the project settings) by the name of "InputAbility1". "Input Spell 1" is the blueprint name of the element.
+	InputAbility2 UMETA(DisplayName = "Input Ability 2"),//Maps ability 2(input ID 1) to action mapping InputAbility2. "Input Spell 2" is mostly Inputd for when the enum is a blueprint variable.
+	InputAbility3 UMETA(DisplayName = "Input Ability 3"),
+	InputAbility4 UMETA(DisplayName = "Input Ability 4"),
+	InputAbility5 UMETA(DisplayName = "Input Ability 5"),
+	InputAbility6 UMETA(DisplayName = "Input Ability 6"),
+	InputAbility7 UMETA(DisplayName = "Input Ability 7"),
+	InputAbility8 UMETA(DisplayName = "Input Ability 8"),
+	InputAbility9 UMETA(DisplayName = "Input Ability 9"),
+	InputAbility10 UMETA(DisplayName = "Input Ability 10"),
+	InputAbility11 UMETA(DisplayName = "Input Ability 11"),
+	InputAbility12 UMETA(DisplayName = "Input Ability 12"),
+	InputAbility13 UMETA(DisplayName = "Input Ability 13"),
+	InputAbility14 UMETA(DisplayName = "Input Ability 14"),
+	InputAbility15 UMETA(DisplayName = "Input Ability 15"),
+	InputAbility16 UMETA(DisplayName = "Input Ability 16"),
+};
 
 UCLASS()
 class INTOTHEARENA_API AMyCharacter : public ACharacter, public IAbilitySystemInterface
@@ -22,7 +43,7 @@ class INTOTHEARENA_API AMyCharacter : public ACharacter, public IAbilitySystemIn
 
 public:
 	// Sets default values for this character's properties
-	AMyCharacter();
+	AMyCharacter(const class FObjectInitializer& ObjectInitializer);
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities, meta = (AllowPrivateAccess = "true"))
@@ -57,8 +78,15 @@ public:
 		int32 RealmRank;
 
 	// Default abilities for this Character. These will be removed on Character death and regiven if Character respawns.
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Abilities")
-		TArray<TSubclassOf<class UGameplayAbility>> CharacterAbilities;
+
+	UPROPERTY()
+		TArray<FGameplayAbilitySpecHandle> SpellAbilityHandles;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Abilities")
+		TArray<TSubclassOf<class UGameplayAbility>> DefaultAbilities;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Abilities")
+		TArray<TSubclassOf<class UGameplayAbility>> ClassAbilities;
 
 	// Default attributes for a character for initializing on spawn/respawn.
 	// This is an instant GE that overrides the values for attributes that get reset on spawn/respawn.
@@ -78,13 +106,18 @@ public:
 	virtual void HandleDamage(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags, AMyCharacter* InstigatorCharacter, AActor* DamageCauser);
 	virtual void HandleHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 	virtual void HandleArmorChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
-	virtual void HandleMovementSpeedChanged(float MovementSpeed, const struct FGameplayTagContainer& EventTags);
+	virtual void HandleMovementSpeedChanged(float MovementSpeedModifier, const struct FGameplayTagContainer& EventTags, FString Opperator);
 	virtual void HandleEnduranceChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 
 	//Attribute functions
 	virtual void InitializeDefaultAbilities();
+	virtual void InitializeClassAbilities();
 	virtual void InitializeAttributes();
+	virtual void PossessedBy(AController* NewController);
+	virtual void OnRep_PlayerState() override;
 	virtual void InitializeDefaultEffects();
+	UFUNCTION(BlueprintCallable)
+	virtual void AddAbilities();
 
 	/*
 	*Attribute Get function
@@ -107,15 +140,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 		virtual float GetArmorPercent() const;
 
-
 	UFUNCTION(BlueprintCallable)
-		virtual float GetMovementSpeedMultiplier() const;
+		virtual float GetMovementSpeedModifier() const;
 
 	UFUNCTION(BlueprintCallable)
 		virtual float GetAttackSpeed() const;
 
 	UFUNCTION(BlueprintCallable)
 		virtual float GetDamage() const;
+
+	UFUNCTION(BlueprintCallable)
+		virtual float GetBaseDamage() const;
 
 	UFUNCTION(BlueprintCallable)
 		virtual float GetPhysicalEffectiveness() const;
@@ -125,6 +160,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		virtual float GetEndurance() const;
+
+	UFUNCTION(BlueprintCallable)
+		virtual float GetEndurancePercent() const;
 
 	UFUNCTION(BlueprintCallable)
 		virtual int32 GetRealmRank() const;

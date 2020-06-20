@@ -40,6 +40,10 @@ public:
 	FGameplayAttributeData Damage;
 	ATTRIBUTE_ACCESSORS(UMyAttributeSet, Damage)
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_BaseDamage, Category = "Attributes")
+	FGameplayAttributeData BaseDamage;
+	ATTRIBUTE_ACCESSORS(UMyAttributeSet, BaseDamage)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_Armor, Category = "Attributes")
 	FGameplayAttributeData Armor;
 	ATTRIBUTE_ACCESSORS(UMyAttributeSet, Armor)
@@ -48,9 +52,9 @@ public:
 	FGameplayAttributeData MaxArmor;
 	ATTRIBUTE_ACCESSORS(UMyAttributeSet, MaxArmor)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_MovementSpeedMultiplier, Category = "Attributes")
-	FGameplayAttributeData MovementSpeedMultiplier;
-	ATTRIBUTE_ACCESSORS(UMyAttributeSet, MovementSpeedMultiplier)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_MovementSpeedModifier, Category = "Attributes")
+	FGameplayAttributeData MovementSpeedModifier;
+	ATTRIBUTE_ACCESSORS(UMyAttributeSet, MovementSpeedModifier)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_AttackSpeed, Category = "Attributes")
 	FGameplayAttributeData AttackSpeed;
@@ -92,7 +96,10 @@ protected:
 		virtual void OnRep_Damage();
 
 	UFUNCTION()
-		virtual void OnRep_MovementSpeedMultiplier();
+		virtual void OnRep_BaseDamage();
+
+	UFUNCTION()
+		virtual void OnRep_MovementSpeedModifier();
 
 	UFUNCTION()
 		virtual void OnRep_AttackSpeed();

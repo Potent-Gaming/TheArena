@@ -9,7 +9,7 @@
 #include "MyDamageExecutionCalculation.h"
 
 // Sets default values
-AMyCharacter::AMyCharacter()
+AMyCharacter::AMyCharacter(const class FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
@@ -18,6 +18,8 @@ AMyCharacter::AMyCharacter()
 	AbilitySystem = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystem"));
 	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	AbilitySystem->SetIsReplicated(true);
+
+	SpellAbilityHandles.SetNum(22, false);
 
 	// Create the attribute set, this replicates by default
 	AttributeSet = CreateDefaultSubobject<UMyAttributeSet>(TEXT("AttributeSet"));
@@ -33,7 +35,27 @@ void AMyCharacter::BeginPlay()
 	InitializeAttributes();
 	InitializeDefaultAbilities();
 	InitializeDefaultEffects();
+	InitializeClassAbilities();
 }
+
+void AMyCharacter::PossessedBy(AController * NewController)
+{
+	Super::PossessedBy(NewController);
+
+}
+
+void AMyCharacter::OnRep_PlayerState()
+{
+	if (AbilitySystem)
+	{
+		//APlayerState* MyPlayerState = GetPlayerState<APlayerState>();
+		AbilitySystem->InitAbilityActorInfo(this, this);
+		InitializeDefaultAbilities();
+		InitializeClassAbilities();
+	}
+	
+};
+
 
 void AMyCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags, AMyCharacter* InstigatorPawn, AActor* DamageCauser)
 {
@@ -50,12 +72,20 @@ void AMyCharacter::HandleArmorChanged(float DeltaValue, const struct FGameplayTa
 	OnArmorChanged(DeltaValue, EventTags);
 }
 
-void AMyCharacter::HandleMovementSpeedChanged(float MovementSpeedMultiplier, const struct FGameplayTagContainer& EventTags)
+void AMyCharacter::HandleMovementSpeedChanged(float MovementSpeedModifier, const struct FGameplayTagContainer& EventTags, FString Opperator)
 {
 
-	OnMovementSpeedChanged(MovementSpeedMultiplier, EventTags);
-	GetCharacterMovement()->MaxWalkSpeed = FMath::Clamp((GetCharacterMovement()->MaxWalkSpeed * MovementSpeedMultiplier),0.f, GetCharacterMovement()->MaxWalkSpeed * 2);
+	OnMovementSpeedChanged(MovementSpeedModifier, EventTags);
+	if (Opperator == "Add")
+	{
+		GetCharacterMovement()->MaxWalkSpeed = FMath::Clamp((GetCharacterMovement()->MaxWalkSpeed + MovementSpeedModifier), 0.f, 1200.f);
+	}
+	if (Opperator == "Multiply")
+	{
+		GetCharacterMovement()->MaxWalkSpeed = FMath::Clamp((GetCharacterMovement()->MaxWalkSpeed * MovementSpeedModifier), 0.f, 1200.f);
+	}
 }
+
 void AMyCharacter::HandleEnduranceChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags)
 {
 	OnEnduranceChanged(DeltaValue, EventTags);
@@ -65,44 +95,72 @@ void AMyCharacter::HandleEnduranceChanged(float DeltaValue, const struct FGamepl
 //Atrribute Functions
 void AMyCharacter::InitializeAttributes()
 {
-	if (HasAuthority())
+	if (HasAuthority() && AttributeSet)
 	{
-		if (!AttributeSet)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed Initialized"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Initialized"));
-			// Can run on Server and Client
-			FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
-			EffectContext.AddSourceObject(this);
+		UE_LOG(LogTemp, Warning, TEXT("Initialized"));
+		// Can run on Server and Client
+		FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
+		EffectContext.AddSourceObject(this);
 
-			FGameplayEffectSpecHandle NewHandle = AbilitySystem->MakeOutgoingSpec(DefaultAttributes, GetRealmRank(), EffectContext);
-			if (NewHandle.IsValid())
-			{
-				FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystem->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), AbilitySystem);
-			}
+		FGameplayEffectSpecHandle NewHandle = AbilitySystem->MakeOutgoingSpec(DefaultAttributes, GetRealmRank(), EffectContext);
+		if (NewHandle.IsValid())
+		{
+			FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystem->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), AbilitySystem);
 		}
 	}
 }
-
-
 void AMyCharacter::InitializeDefaultAbilities()
 {
-	if (HasAuthority())
+	if (HasAuthority() && AbilitySystem)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Granted Abilities"));
-		for (TSubclassOf<UGameplayAbility>& StartupAbility : CharacterAbilities)
+		for (TSubclassOf<UGameplayAbility>& StartupAbility : DefaultAbilities)
 		{
-			AbilitySystem->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, INDEX_NONE, this));
+			AbilitySystem->GiveAbility(FGameplayAbilitySpec(StartupAbility,1, INDEX_NONE, this));
 		}
+	}
+	else
+	{
+		return;
+	}
+}
+
+void AMyCharacter::InitializeClassAbilities()
+{
+	if (HasAuthority() && AbilitySystem)
+	{
+		int bindkey = 0;
+		for (TSubclassOf<UGameplayAbility>& StartupAbility : ClassAbilities)
+		{
+			SpellAbilityHandles[bindkey] = AbilitySystem->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, bindkey, this));
+			bindkey++;
+		}
+	}
+	else
+	{
+		return;
+	}
+}
+
+void AMyCharacter::AddAbilities()
+{
+	if (HasAuthority() && AbilitySystem)
+	{
+		int bindkey = 0;
+		for (TSubclassOf<UGameplayAbility>& StartupAbility : DefaultAbilities)
+		{
+			SpellAbilityHandles[bindkey] = AbilitySystem->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, bindkey, this));
+			bindkey++;
+		}
+	}
+	else
+	{
+		return;
 	}
 }
 
 void AMyCharacter::InitializeDefaultEffects()
 {
-	if (HasAuthority())
+	if (HasAuthority() && AbilitySystem)
 	{ 
 		FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
 		EffectContext.AddSourceObject(this);
@@ -130,7 +188,7 @@ void AMyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
+	AbilitySystem->BindAbilityActivationToInputComponent(PlayerInputComponent, FGameplayAbilityInputBinds("ConfirmInput", "CancelInput", "AbilityInput"));
 }
 
 
@@ -177,9 +235,9 @@ float AMyCharacter::GetArmorPercent() const
 	return ((AttributeSet->GetArmor()) / (AttributeSet->GetMaxArmor()));
 }
 
-float AMyCharacter::GetMovementSpeedMultiplier() const
+float AMyCharacter::GetMovementSpeedModifier() const
 {
-	return AttributeSet->GetMovementSpeedMultiplier();
+	return AttributeSet->GetMovementSpeedModifier();
 }
 
 float AMyCharacter::GetAttackSpeed() const
@@ -190,6 +248,11 @@ float AMyCharacter::GetAttackSpeed() const
 float AMyCharacter::GetDamage() const
 {
 	return AttributeSet->GetDamage();
+}
+
+float AMyCharacter::GetBaseDamage() const
+{
+	return AttributeSet->GetBaseDamage();
 }
 
 float AMyCharacter::GetPhysicalEffectiveness() const
@@ -205,6 +268,11 @@ float AMyCharacter::GetMagicalEffectiveness() const
 float AMyCharacter::GetEndurance() const
 {
 	return AttributeSet->GetEndurance();
+}
+
+float AMyCharacter::GetEndurancePercent() const
+{
+	return ((AttributeSet->GetEndurance()) / (AttributeSet->GetMaxEndurance()));
 }
 
 bool AMyCharacter::IsAlive() const
@@ -231,5 +299,7 @@ void AMyCharacter::SetEndurance(float Endurance)
 {
 	return AttributeSet->SetEndurance(Endurance);
 }
+
+
 
 
